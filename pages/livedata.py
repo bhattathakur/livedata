@@ -2,7 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import time
+import time as t
 import datetime
 import pytz
 import plotly.graph_objects as go
@@ -30,7 +30,7 @@ time_16=datetime.time(hour=16)
 last_bussiness_day=pd.bdate_range(end=current_date,periods=1)[0]
 
 #check if current day is a business day and current time is in between 9:30 AM EST to 4:00 PM EST
-check_date_time=(current_date==last_bussiness_day) and (current_time>time_930) and (current_time<time_16)
+check_date_time=(current_date==last_bussiness_day.date()) and (current_time>time_930) and (current_time<time_16)
 
 if debug:st.write(f'current_date: {current_date}')
 if debug:st.write(f'current_time: {current_time}')
@@ -42,7 +42,7 @@ if debug:st.write(f'meet_live_stock_data_criterion: {check_date_time}')
 mag7=['AAPL','NVDA','TSLA','META','AMZN','GOOGL','MSFT']
 current_time_text=f"{current_date_time.strftime('%A, %I:%M %p, %Y-%m-%d')}"
 
-check_date_time=True
+#check_date_time=True
 plot_placeholder=st.empty()
 
 if not check_date_time:
@@ -60,7 +60,7 @@ choose_radio_options=['CHOOSE FROM LIST','INPUT YOUR TICKER']# if check_date_tim
 radio_value=st.sidebar.radio("INPUT METHOD",choose_radio_options,key='input_method')
 #user_value=st.sidebar.selectbox("SELECT or INPUT YOUR TICKER",mag7,index=1,key='user_choice')
 if radio_value==choose_radio_options[0]:
-    user_value=st.sidebar.selectbox("SELECT",mag7,key='mag7')
+    user_value=st.sidebar.selectbox("SELECT",mag7,key='mag7',index=2)
 else:
     user_value=st.sidebar.text_input("INPUT YOUR TICKER",key='user_input').upper()
 #user_value='AMD'
@@ -150,24 +150,33 @@ def get_informative_df(df):
   temp_df=temp_df.drop(dropping_cols,axis=1)
   return temp_df.round(2)
 
-def get_live_plot(df):
+go_live=True
+count=1
+placeholder=st.empty()
+
+while go_live and user_value:
+    if count>1:t.sleep(60)
+    #if count>3:
+    #    st.stop()
+    #    break
+    count+=1
     #"""
     #get minute data for a ticker for a last business day
     #"""
-    #try:
-    #    df=yf.download(ticker,period='1d',interval='1m',group_by='tickers')
-    #    # Check if DataFrame is empty
-    #    if df.empty:
-    #        st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
-    #        st.stop()
-    #except:
-    #    st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
-    #    st.stop()
+    try:
+        df=yf.download(ticker,period='1d',interval='1m',group_by='tickers')
+        # Check if DataFrame is empty
+        if df.empty:
+            st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
+            st.stop()
+    except:
+        st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
+        st.stop()
 
     if(debug):st.write(df.tail())
     if(debug):st.write(f"df columns: {df.columns}")
     #df=df[ticker].reset_index(drop=False)
-    #df=df.reset_index(drop=False)
+    df=df.reset_index(drop=False)
     #info_df['Datetime']=pd.to_datetime(info_df['Datetime'])
     #df.loc[:,ticker]=ticker
     df['Volume']=df['Volume'].div(1e6)
@@ -215,116 +224,118 @@ def get_live_plot(df):
     #if(debug):st.write(f'info_df_date: {info_df.Datetime}')
     #candlestick chart data
     #existing date
-    
+    #placeholder=st.empty()
 
-    fig=make_subplots(rows=3,cols=1,shared_xaxes=True,vertical_spacing=0.05,row_heights=[0.5,0.2,0.3])
+    with placeholder.container():
 
+        fig=make_subplots(rows=3,cols=1,shared_xaxes=True,vertical_spacing=0.05,row_heights=[0.6,0.2,0.2])
 
+        #first row
+        fig.add_trace(go.Candlestick(x=info_df['Datetime'],open=info_df['Open'], high=info_df['High'],low=info_df['Low'],\
+                close=info_df['Close'],name=f'{ticker}-Candlestick'),row=1,col=1)
 
-    #first row
-    fig.add_trace(go.Candlestick(x=info_df['Datetime'],open=info_df['Open'], high=info_df['High'],low=info_df['Low'],\
-            close=info_df['Close'],name=f'{ticker}-Candlestick'),row=1,col=1)
+        fig.add_trace(go.Scatter(x=info_df['Datetime'],y=info_df['sma5'],mode='lines',name='SMA5',line=dict(color='red')),row=1,col=1)
+        fig.add_trace(go.Scatter(x=info_df['Datetime'],y=info_df['sma10'],mode='lines',name='SMA10',line=dict(color='blue')),row=1,col=1)
+        fig.add_trace(go.Scatter(x=info_df['Datetime'],y=info_df['vwap'],mode='lines',name='vwap',line=dict(color='orange')),row=1,col=1)
 
-    fig.add_trace(go.Scatter(x=info_df['Datetime'],y=info_df['sma5'],mode='lines',name='SMA5',line=dict(color='red')),row=1,col=1)
-    fig.add_trace(go.Scatter(x=info_df['Datetime'],y=info_df['sma10'],mode='lines',name='SMA10',line=dict(color='blue')),row=1,col=1)
-    fig.add_trace(go.Scatter(x=info_df['Datetime'],y=info_df['vwap'],mode='lines',name='vwap',line=dict(color='orange')),row=1,col=1)
+        #Define the times for vertical lines (using the existing date)
+        times = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00']
+        for time_str in times:
+            time = pd.to_datetime(f"{existing_date} {time_str}")  # Combine date and time
+            #print(f'time: {time}')
+            fig.add_vline(x=time, line=dict(color='brown', width=0.5, dash='dot'),row=1,col=1)
 
-    #Define the times for vertical lines (using the existing date)
-    times = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00']
-    for time_str in times:
-        time = pd.to_datetime(f"{existing_date} {time_str}")  # Combine date and time
-        #print(f'time: {time}')
-        fig.add_vline(x=time, line=dict(color='brown', width=0.5, dash='dot'),row=1,col=1)
+        #second row
+        fig.add_trace(go.Bar(x=info_df['Datetime'], y=info_df['Volume'], text=info_df['Volume'],textposition='auto',name='Volume', marker_color='grey'), row=2, col=1)
+        fig.add_trace(go.Scatter(x=info_df['Datetime'],y=info_df['vol5'],mode='lines',name='volume5',line=dict(color='skyblue')),row=2,col=1)
 
-    #second row
-    fig.add_trace(go.Bar(x=info_df['Datetime'], y=info_df['Volume'], text=info_df['Volume'],textposition='auto',name='Volume', marker_color='grey'), row=2, col=1)
-    fig.add_trace(go.Scatter(x=info_df['Datetime'],y=info_df['vol5'],mode='lines',name='volume5',line=dict(color='skyblue')),row=2,col=1)
+        #third row
+        fig.add_trace(go.Bar(x=info_df['Datetime'], y=info_df['tr'], text=info_df['tr'],textposition='auto',name='TR', marker_color='magenta'), row=3, col=1)
+        fig.add_trace(go.Scatter(x=info_df['Datetime'],y=info_df['atr5'],mode='lines',name='ATR5',line=dict(color='lightgreen')),row=3,col=1)
 
-    #third row
-    fig.add_trace(go.Bar(x=info_df['Datetime'], y=info_df['tr'], text=info_df['tr'],textposition='auto',name='TR', marker_color='magenta'), row=3, col=1)
-    fig.add_trace(go.Scatter(x=info_df['Datetime'],y=info_df['atr5'],mode='lines',name='ATR5',line=dict(color='lightgreen')),row=3,col=1)
+        #horizontal line in x_min and x_max
+        #date min and max for creating a horizontal line
+        date_min=info_df['Datetime'].min()
+        date_max=info_df['Datetime'].max()
+        max_price=info_df['High'].max()
+        min_price=info_df['High'].min()
 
-    #horizontal line in x_min and x_max
-    #date min and max for creating a horizontal line
-    date_min=info_df['Datetime'].min()
-    date_max=info_df['Datetime'].max()
-    max_price=info_df['High'].max()
-    min_price=info_df['High'].min()
-
-    #add the horizontal line at min and max value
-    fig.add_shape(type='line',x0=date_min,y0=max_price,x1=date_max,y1=max_price,line=dict(color='lightgreen',width=1,dash='dash'),row=1,col=1)
-    fig.add_shape(type='line',x0=date_min,y0=min_price,x1=date_max,y1=min_price,line=dict(color='salmon',width=1,dash='dash'),row=1,col=1)
-    
-    #generate custom tickers
-    start_time=info_df['Datetime'].iloc[0].floor('5T')
-    end_time=info_df['Datetime'].iloc[-1].floor('5T')
-    custom_ticks_vals=pd.date_range(start=start_time,end=end_time,freq='5T')
-    custom_ticks_text=[x.strftime('%H:%M') for x in custom_ticks_vals]
-    #printtick labels
-    #st.write(f'custom_ticks_vals: {custom_ticks_vals}')
-    #st.write(f'custom_ticks_text: {custom_ticks_text}')
-
-    fig.update_layout(xaxis_rangeslider_visible=False,
-            xaxis=dict(tickmode='array',tickvals=custom_ticks_vals,ticktext=custom_ticks_text),
-            #xaxis_tickformat='%H:%M',
-            width=1200,height=800,
-            )
-
-    #row 1
-    with st.container():
-        col1,col2,col3,col4,col5,col6,col7=st.columns(7)
-
-        with col1:
-            st.metric(f'ticker'.upper(),ticker)
-        with col2:
-            st.metric(f'time'.upper(),str(last_time))
-
-        with col3:
-            st.metric(f'change'.upper(),close,change)
-        with col4:
-            st.metric('%Change'.upper(),"",pct_change)
-        with col5:
-            st.metric('VOLUME (M)',volume)
-        with col6:
-            st.metric('TR',tr)
-        with col7:
-            st.metric('ATR_5',atr5)
-
-    #row 2
-    with st.container():
-        col1,col2,col3,col4=st.columns(4)
-        text_size='30px'
-
-        with col1:
-            text_color='green' if sma5_gt_sma10 else 'salmon'
-            display_text="SMA5 &gt SMA10" if sma5_gt_sma10 else "SMA5 &lt SMA10"
-            st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
-        with col2:
-            text_color='green' if volume>volume5 else 'salmon'
-            display_text=''
-            if volume>volume5:display_text='VOL &gt VOL5' #if volume>volume5 else 'VOL &lt VOL5'
-            elif volume<volume5:display_text='VOL &lt VOL5'
-            st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
-
-        with col3:
-            display_text=''
-            text_color='green' if tr>atr5 else 'salmon'
-            if tr>atr5:display_text='TR &gt ATR5' #if tr>atr5 else 'TR &lt ATR5'
-            elif tr<atr5:display_text='TR &lt ATR5'
-            st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+        #add the horizontal line at min and max value
+        fig.add_shape(type='line',x0=date_min,y0=max_price,x1=date_max,y1=max_price,line=dict(color='lightgreen',width=1,dash='dash'),row=1,col=1)
+        fig.add_shape(type='line',x0=date_min,y0=min_price,x1=date_max,y1=min_price,line=dict(color='salmon',width=1,dash='dash'),row=1,col=1)
         
-        with col4:
-            text_color='green' if higher_close else 'salmon'
-            display_text=''
-            if higher_close:display_text='HIGHER CLOSE'
-            elif lower_close:display_text='LOWER CLOSE'
+        #generate custom tickers
+        start_time=info_df['Datetime'].iloc[0].floor('5T')
+        end_time=info_df['Datetime'].iloc[-1].floor('5T')
+        custom_ticks_vals=pd.date_range(start=start_time,end=end_time,freq='5T')
+        custom_ticks_text=[x.strftime('%H:%M') for x in custom_ticks_vals]
+        #printtick labels
+        #st.write(f'custom_ticks_vals: {custom_ticks_vals}')
+        #st.write(f'custom_ticks_text: {custom_ticks_text}')
 
+        fig.update_layout(xaxis_rangeslider_visible=False,
+                xaxis=dict(tickmode='array',tickvals=custom_ticks_vals,ticktext=custom_ticks_text),
+                #xaxis_tickformat='%H:%M',
+                width=1200,height=750,
+                )
+
+        #row 1
+        with st.container():
+            col1,col2,col3,col4,col5,col6,col7=st.columns(7)
+
+            with col1:
+                st.metric(f'ticker'.upper(),ticker)
+            with col2:
+                st.metric(f'time'.upper(),str(last_time))
+
+            with col3:
+                st.metric(f'change'.upper(),close,change)
+            with col4:
+                st.metric('%Change'.upper(),"",pct_change)
+            with col5:
+                st.metric('VOLUME (M)',volume)
+            with col6:
+                st.metric('TR',tr)
+            with col7:
+                st.metric('ATR_5',atr5)
+
+        #row 2
+        with st.container():
+            col1,col2,col3,col4,col5=st.columns(5)
+            text_size='30px'
+
+            with col1:
+                text_color='green' if sma5_gt_sma10 else 'salmon'
+                display_text="SMA5 &gt SMA10" if sma5_gt_sma10 else "SMA5 &lt SMA10"
+                st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+            with col2:
+                text_color='green' if volume>volume5 else 'salmon'
+                display_text=''
+                if volume>volume5:display_text='VOL &gt VOL5' #if volume>volume5 else 'VOL &lt VOL5'
+                elif volume<volume5:display_text='VOL &lt VOL5'
+                st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+
+            with col3:
+                display_text=''
+                text_color='green' if tr>atr5 else 'salmon'
+                if tr>atr5:display_text='TR &gt ATR5' #if tr>atr5 else 'TR &lt ATR5'
+                elif tr<atr5:display_text='TR &lt ATR5'
+                st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
             
-            #display_text='HIGHER CLOSE' if higher_close else 'LOWER CLOSE'
-            st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
-
-    #row 3
-    with st.container():
+            with col4:
+                text_color='green' if higher_close else 'salmon'
+                display_text=''
+                if higher_close:display_text='HIGHER CLOSE'
+                elif lower_close:display_text='LOWER CLOSE'
+            with col5:
+                text_color='green' if price_above_vwap else 'salmon'
+                display_text="ClOSE &gt VWAP" if price_above_vwap else " CLOSE &lt VWAP"
+                st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+                
+        #row 3
+        #plot_key=f'plot_{time.time()}'
+        #st.write(f'Time now {time.time()}')
+        #with st.container():
         st.plotly_chart(fig,use_container_width=True)
     #return info_df.tail(2)
 
@@ -333,26 +344,27 @@ def get_live_plot(df):
 #    """
 #    get minute data for a ticker for a last business day
 #    """
-live=True
-count=1
-while live and user_value:
-    if count==5:st.stop()
-    print(f"count: {count}")
-    count+=1
-    try:
-        df=yf.download(user_value,period='1d',interval='1m',group_by='tickers')
-        # Check if DataFrame is empty
-        if df.empty:
-            st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
-            st.stop()
-    except:
-        st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
-        st.stop()
-    #if(debug):st.dataframe(f'{df.tail()}')
-    st.dataframe(df.tail())
-    df=df.reset_index(drop=False)
-    st.write(f"columns: {df.columns}")
-    #get live plot
-    figg=get_live_plot(df)
-    plot_placeholder.plotly_chart(figg,use_container_width=True)
-    time.sleep(20)
+# live=True
+# count=1
+# while live and user_value:
+#     if count==5:st.stop()
+#     print(f"count: {count}")
+#     count+=1
+#     try:
+#         df=yf.download(user_value,period='1d',interval='1m',group_by='tickers')
+#         # Check if DataFrame is empty
+#         if df.empty:
+#             st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
+#             st.stop()
+#     except:
+#         st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
+#         st.stop()
+#     #if(debug):st.dataframe(f'{df.tail()}')
+#     st.dataframe(df.tail())
+#     df=df.reset_index(drop=False)
+#     st.write(f"length: {len(df)}")
+#     get_live_plot(df)
+#     #get live plot
+#     # figg=get_live_plot(df)
+#     # plot_placeholder.plotly_chart(figg,use_container_width=True)
+#     time.sleep(61)

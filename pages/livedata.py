@@ -175,8 +175,8 @@ while go_live and user_value:
 
     if(debug):st.write(df.tail())
     if(debug):st.write(f"df columns: {df.columns}")
-    #df=df[ticker].reset_index(drop=False)
-    df=df.reset_index(drop=False)
+    df=df[ticker].reset_index(drop=False)
+    #df=df.reset_index(drop=False)
     #info_df['Datetime']=pd.to_datetime(info_df['Datetime'])
     #df.loc[:,ticker]=ticker
     df['Volume']=df['Volume'].div(1e6)

@@ -180,7 +180,7 @@ while go_live and user_value:
     #info_df['Datetime']=pd.to_datetime(info_df['Datetime'])
     #df.loc[:,ticker]=ticker
     df['Volume']=df['Volume'].div(1e6)
-    #df['Datetime']=df['Datetime'].dt.tz_convert(est_timezone)#.dt.strftime('%Y-%m-%d %H:%M')
+    df['Datetime']=df['Datetime'].dt.tz_convert(est_timezone)#.dt.strftime('%Y-%m-%d %H:%M')
     info_df=get_informative_df(df)
     if(debug):st.write(f"info_df columns: {info_df.columns}")
     #last row

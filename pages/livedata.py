@@ -18,7 +18,7 @@ st.markdown("<h4 Style='text-align:center;'>Real-Time Stock Dashboard</h4>",unsa
 est_timezone=pytz.timezone('US/Eastern')
 
 #sidebar with datetime (updating) and options for ticker choice including BTC-USD And ETH-USD
-debug=False
+debug=True
 
 current_date_time=datetime.datetime.now(est_timezone)#
 current_date=current_date_time.date()

@@ -43,7 +43,7 @@ mag7=['AAPL','NVDA','TSLA','META','AMZN','GOOGL','MSFT']
 current_time_text=f"{current_date_time.strftime('%A, %I:%M %p, %Y-%m-%d')}"
 
 #check_date_time=True
-plot_placeholder=st.empty()
+plot_placeholder=st.empty() #VERY important for refreshing the same plot otherwise each plot will append
 
 if not check_date_time:
     st.warning('This app works only for regular market hours [9:30 AM - 4 PM EST, Business Day]',icon='⚠️')
@@ -228,7 +228,7 @@ while go_live and user_value:
 
     with placeholder.container():
 
-        fig=make_subplots(rows=3,cols=1,shared_xaxes=True,vertical_spacing=0.05,row_heights=[0.6,0.2,0.2])
+        fig=make_subplots(rows=3,cols=1,shared_xaxes=False,vertical_spacing=0.05,row_heights=[0.6,0.2,0.2])
 
         #first row
         fig.add_trace(go.Candlestick(x=info_df['Datetime'],open=info_df['Open'], high=info_df['High'],low=info_df['Low'],\
@@ -275,7 +275,7 @@ while go_live and user_value:
 
         fig.update_layout(xaxis_rangeslider_visible=False,
                 xaxis=dict(tickmode='array',tickvals=custom_ticks_vals,ticktext=custom_ticks_text),
-                #xaxis_tickformat='%H:%M',
+                xaxis_tickformat='%H:%M',
                 width=1200,height=750,
                 )
 

@@ -258,7 +258,7 @@ while go_live and user_value:
         date_min=info_df['Datetime'].min()
         date_max=info_df['Datetime'].max()
         max_price=info_df['High'].max()
-        min_price=info_df['High'].min()
+        min_price=info_df['Low'].min()
 
         #add the horizontal line at min and max value
         fig.add_shape(type='line',x0=date_min,y0=max_price,x1=date_max,y1=max_price,line=dict(color='lightgreen',width=1,dash='dash'),row=1,col=1)

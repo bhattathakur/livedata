@@ -13,7 +13,7 @@ from plotly.subplots import make_subplots
 
 st.set_page_config(layout='wide') #wide page
 
-st.title("Real-Time Stock Dashboard")
+st.markdown("<h4 Style='text-align:center;'>Real-Time Stock Dashboard</h4>",unsafe_allow_html=True)
 
 est_timezone=pytz.timezone('US/Eastern')
 
@@ -42,22 +42,33 @@ if debug:st.write(f'meet_live_stock_data_criterion: {check_date_time}')
 mag7=['AAPL','NVDA','TSLA','META','AMZN','GOOGL','MSFT']
 current_time_text=f"{current_date_time.strftime('%A, %I:%M %p, %Y-%m-%d')}"
 
+check_date_time=True
+plot_placeholder=st.empty()
+
 if not check_date_time:
     st.warning('This app works only for regular market hours [9:30 AM - 4 PM EST, Business Day]',icon='⚠️')
     st.warning(f'Current Date Time: {current_time_text}')
+    st.stop() #NOTE THIS 
 
 #time information
 #st.sidebar.text(current_date_time)
 
 #selection box
 #user has two options input their own ticker or choose from the options
-choose_radio_options=['CHOOSE FROM LIST','INPUT YOUR TICKER'] if check_date_time else ['CHOOSE FROM LIST']
+choose_radio_options=['CHOOSE FROM LIST','INPUT YOUR TICKER']# if check_date_time else ['CHOOSE FROM LIST']
 
 radio_value=st.sidebar.radio("INPUT METHOD",choose_radio_options,key='input_method')
-user_value=st.sidebar.selectbox("SELECT or INPUT YOUR TICKER",mag7,index=1,key='user_choice')
-
+#user_value=st.sidebar.selectbox("SELECT or INPUT YOUR TICKER",mag7,index=1,key='user_choice')
+if radio_value==choose_radio_options[0]:
+    user_value=st.sidebar.selectbox("SELECT",mag7,key='mag7')
+else:
+    user_value=st.sidebar.text_input("INPUT YOUR TICKER",key='user_input').upper()
+#user_value='AMD'
 #print
-st.sidebar.markdown(f'{user_value} selected')
+st.sidebar.markdown(f'Your choice: {user_value}')
+
+#ticker
+ticker=user_value #will be used in a plot
 
 #function to get minute ticker data from yahoo finance with yfinance
 #get sma5, msa10, rsi, vwap, change, cheang_pct, TR ATR, higher close or lower close for 3 minutes
@@ -139,15 +150,24 @@ def get_informative_df(df):
   temp_df=temp_df.drop(dropping_cols,axis=1)
   return temp_df.round(2)
 
-def get_ticker_minute_data(ticker):
-    """
-    get minute data for a ticker for a last business day
-    """
-    df=yf.download(ticker,period='1d',interval='1m',group_by='tickers')
+def get_live_plot(df):
+    #"""
+    #get minute data for a ticker for a last business day
+    #"""
+    #try:
+    #    df=yf.download(ticker,period='1d',interval='1m',group_by='tickers')
+    #    # Check if DataFrame is empty
+    #    if df.empty:
+    #        st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
+    #        st.stop()
+    #except:
+    #    st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
+    #    st.stop()
+
     if(debug):st.write(df.tail())
     if(debug):st.write(f"df columns: {df.columns}")
     #df=df[ticker].reset_index(drop=False)
-    df=df.reset_index(drop=False)
+    #df=df.reset_index(drop=False)
     #info_df['Datetime']=pd.to_datetime(info_df['Datetime'])
     #df.loc[:,ticker]=ticker
     df['Volume']=df['Volume'].div(1e6)
@@ -252,7 +272,7 @@ def get_ticker_minute_data(ticker):
 
     #row 1
     with st.container():
-        col1,col2,col3,col4,col5,col6=st.columns(6)
+        col1,col2,col3,col4,col5,col6,col7=st.columns(7)
 
         with col1:
             st.metric(f'ticker'.upper(),ticker)
@@ -264,27 +284,75 @@ def get_ticker_minute_data(ticker):
         with col4:
             st.metric('%Change'.upper(),"",pct_change)
         with col5:
-            st.metric('TR',tr)
+            st.metric('VOLUME (M)',volume)
         with col6:
+            st.metric('TR',tr)
+        with col7:
             st.metric('ATR_5',atr5)
-
-            #change
-
-#        with col3:
-            #change%
-
-    #row 2
-    #with st.container():
-
-
 
     #row 2
     with st.container():
+        col1,col2,col3,col4=st.columns(4)
+        text_size='30px'
+
+        with col1:
+            text_color='green' if sma5_gt_sma10 else 'salmon'
+            display_text="SMA5 &gt SMA10" if sma5_gt_sma10 else "SMA5 &lt SMA10"
+            st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+        with col2:
+            text_color='green' if volume>volume5 else 'salmon'
+            display_text=''
+            if volume>volume5:display_text='VOL &gt VOL5' #if volume>volume5 else 'VOL &lt VOL5'
+            elif volume<volume5:display_text='VOL &lt VOL5'
+            st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+
+        with col3:
+            display_text=''
+            text_color='green' if tr>atr5 else 'salmon'
+            if tr>atr5:display_text='TR &gt ATR5' #if tr>atr5 else 'TR &lt ATR5'
+            elif tr<atr5:display_text='TR &lt ATR5'
+            st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+        
+        with col4:
+            text_color='green' if higher_close else 'salmon'
+            display_text=''
+            if higher_close:display_text='HIGHER CLOSE'
+            elif lower_close:display_text='LOWER CLOSE'
+
+            
+            #display_text='HIGHER CLOSE' if higher_close else 'LOWER CLOSE'
+            st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+
+    #row 3
+    with st.container():
         st.plotly_chart(fig,use_container_width=True)
-    
     #return info_df.tail(2)
 
-
-temp_df=get_ticker_minute_data('TSLA')    
-
-#st.dataframe(temp_df)
+#whilte True:
+#def get_ticker_minute_data(ticker):
+#    """
+#    get minute data for a ticker for a last business day
+#    """
+live=True
+count=1
+while live and user_value:
+    if count==5:st.stop()
+    print(f"count: {count}")
+    count+=1
+    try:
+        df=yf.download(user_value,period='1d',interval='1m',group_by='tickers')
+        # Check if DataFrame is empty
+        if df.empty:
+            st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
+            st.stop()
+    except:
+        st.warning('Error Occured, Enter a correct ticker or try again later !',icon="⚠️")
+        st.stop()
+    #if(debug):st.dataframe(f'{df.tail()}')
+    st.dataframe(df.tail())
+    df=df.reset_index(drop=False)
+    st.write(f"columns: {df.columns}")
+    #get live plot
+    figg=get_live_plot(df)
+    plot_placeholder.plotly_chart(figg,use_container_width=True)
+    time.sleep(20)

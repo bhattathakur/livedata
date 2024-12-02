@@ -3,5 +3,5 @@ pandas
 numpy
 pytz
 yfinance
-pandas_ta
+plotly
 

@@ -157,7 +157,7 @@ def get_informative_df(df):
   temp_df['sma5<sma10']=temp_df['sma5']<temp_df['sma10']
   temp_df['higher_close']=(temp_df['Close']>temp_df['Close'].shift(1)) & (temp_df['Close'].shift(1)>temp_df['Close'].shift(2))
   temp_df['lower_close']=(temp_df['Close']<temp_df['Close'].shift(1)) & (temp_df['Close'].shift(1)<temp_df['Close'].shift(2))
-  temp_df['volume_sum']=df['volume'].cumsum() # Added sum su
+  temp_df['volume_sum']=df['Volume'].cumsum() # Added sum su
 
   #dropping_columns
   dropping_cols=['TR1','TR2','TR3','typical_price']

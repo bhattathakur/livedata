@@ -188,7 +188,7 @@ while go_live and user_value:
 
     if(debug):st.write(df.tail())
     if(debug):st.write(f"df columns: {df.columns}")
-    on_local=True
+    on_local=False
     if not on_local:df=df[ticker].reset_index(drop=False) #This is turned on the app deployment and turned off in local
     df=df.reset_index(drop=False)
     df['Datetime']=pd.to_datetime(df['Datetime']) #Needed for a local

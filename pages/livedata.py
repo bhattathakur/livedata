@@ -310,7 +310,7 @@ while go_live and user_value:
             with col4:
                 st.metric('%Change'.upper(),"",pct_change)
             with col5:
-               st.metric('TRADED_VOLUME (M)',total_volume)
+               st.metric('TRADED_VOLUME (M)',traded_volume)
             with col6:
                 st.metric('TR',tr)
             with col7:

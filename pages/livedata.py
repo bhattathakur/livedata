@@ -39,7 +39,7 @@ if debug:st.write(f'meet_live_stock_data_criterion: {check_date_time}')
 #tickers and cryptocurrencies
 #crypto=['BTC-USD','ETH-USD']
 
-mag7=['AAPL','NVDA','TSLA','META','AMZN','GOOGL','MSFT']
+mag7=['AAPL','NVDA','TSLA','META','AMZN','GOOGL','MSFT','MSTR','AMD','GME','DJT','SMCI']
 current_time_text=f"{current_date_time.strftime('%A, %I:%M %p, %Y-%m-%d')}"
 
 #check_date_time=True
@@ -121,6 +121,18 @@ def calculate_rsi(close_prices, timeperiod=14):
     
     return rsi
 
+#define a function for text to audio
+def text_to_audio(text,ticker=ticker):
+    js_code = f"""
+    <script>
+        const msg = new SpeechSynthesisUtterance("{ticker} {text}");
+        msg.lang = 'en-US';  // Set the language (customize as needed)
+        msg.pitch=0.8;
+        window.speechSynthesis.speak(msg);
+    </script>
+    """
+    st.components.v1.html(js_code, height=0,width=0)
+
 
 #get informative df
 def get_informative_df(df):
@@ -128,6 +140,7 @@ def get_informative_df(df):
   temp_df['sma5']=get_sma(temp_df,'Close',5)
   temp_df['sma10']=get_sma(temp_df,'Close',10)
   temp_df['vol5']=get_sma(temp_df,'Volume',5)
+  temp_df['vol10']=get_sma(temp_df,'Volume',10)
   temp_df['typical_price']=(temp_df['High']+temp_df['Low']+temp_df['Close'])/3
   temp_df['vwap']=(temp_df['Volume']*temp_df['typical_price']).cumsum()/temp_df['Volume'].cumsum()
   temp_df['rsi']=calculate_rsi(temp_df['Close'])
@@ -155,7 +168,7 @@ count=1
 placeholder=st.empty()
 
 while go_live and user_value:
-    if count>1:t.sleep(60)
+    if count>1:t.sleep(50)
     #if count>3:
     #    st.stop()
     #    break
@@ -175,9 +188,10 @@ while go_live and user_value:
 
     if(debug):st.write(df.tail())
     if(debug):st.write(f"df columns: {df.columns}")
-    df=df[ticker].reset_index(drop=False)
-    #df=df.reset_index(drop=False)
-    #info_df['Datetime']=pd.to_datetime(info_df['Datetime'])
+    on_local=True
+    if not on_local:df=df[ticker].reset_index(drop=False) #This is turned on the app deployment and turned off in local
+    df=df.reset_index(drop=False)
+    df['Datetime']=pd.to_datetime(df['Datetime']) #Needed for a local
     #df.loc[:,ticker]=ticker
     df['Volume']=df['Volume'].div(1e6)
     df['Datetime']=df['Datetime'].dt.tz_convert(est_timezone)#.dt.strftime('%Y-%m-%d %H:%M')
@@ -191,6 +205,7 @@ while go_live and user_value:
     pct_change=last_row.at['pct_change']
     volume=last_row.at['Volume']
     volume5=last_row.at['vol5']
+    volume10=last_row.at['vol10']
     vwap=last_row.at['vwap']
     rsi=last_row.at['rsi']
     tr=last_row.at['tr']
@@ -224,7 +239,7 @@ while go_live and user_value:
     #if(debug):st.write(f'info_df_date: {info_df.Datetime}')
     #candlestick chart data
     #existing date
-    #placeholder=st.empty()
+    #placeholder=st.empty()  #already defined above
 
     with placeholder.container():
 
@@ -265,9 +280,9 @@ while go_live and user_value:
         fig.add_shape(type='line',x0=date_min,y0=min_price,x1=date_max,y1=min_price,line=dict(color='salmon',width=1,dash='dash'),row=1,col=1)
         
         #generate custom tickers
-        start_time=info_df['Datetime'].iloc[0].floor('5T')
-        end_time=info_df['Datetime'].iloc[-1].floor('5T')
-        custom_ticks_vals=pd.date_range(start=start_time,end=end_time,freq='5T')
+        start_time=info_df['Datetime'].iloc[0].floor('5min')
+        end_time=info_df['Datetime'].iloc[-1].floor('5min')
+        custom_ticks_vals=pd.date_range(start=start_time,end=end_time,freq='5min')
         custom_ticks_text=[x.strftime('%H:%M') for x in custom_ticks_vals]
         #printtick labels
         #st.write(f'custom_ticks_vals: {custom_ticks_vals}')
@@ -276,7 +291,7 @@ while go_live and user_value:
         fig.update_layout(xaxis_rangeslider_visible=False,
                 xaxis=dict(tickmode='array',tickvals=custom_ticks_vals,ticktext=custom_ticks_text),
                 xaxis_tickformat='%H:%M',
-                width=1200,height=750,
+                width=1200,height=700,
                 )
 
         #row 1
@@ -292,8 +307,8 @@ while go_live and user_value:
                 st.metric(f'change'.upper(),close,change)
             with col4:
                 st.metric('%Change'.upper(),"",pct_change)
-            with col5:
-                st.metric('VOLUME (M)',volume)
+            #with col5:
+            #    st.metric('VOLUME (M)',volume)
             with col6:
                 st.metric('TR',tr)
             with col7:
@@ -307,12 +322,15 @@ while go_live and user_value:
             with col1:
                 text_color='green' if sma5_gt_sma10 else 'salmon'
                 display_text="SMA5 &gt SMA10" if sma5_gt_sma10 else "SMA5 &lt SMA10"
+                audio_text="SMA5 is greater than  SMA10" if sma5_gt_sma10 else "SMA5 is less than SMA10"
                 st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+                text_to_audio(audio_text)
             with col2:
-                text_color='green' if volume>volume5 else 'salmon'
+                condition=volume5>volume10
+                text_color='green' if condition else 'salmon'
                 display_text=''
-                if volume>volume5:display_text='VOL &gt VOL5' #if volume>volume5 else 'VOL &lt VOL5'
-                elif volume<volume5:display_text='VOL &lt VOL5'
+                if condition:display_text='VOL5 &gt VOL10' #if volume>volume5 else 'VOL &lt VOL5'
+                elif not condition:display_text='VOL5 &lt VOL10'
                 st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
 
             with col3:
@@ -321,22 +339,29 @@ while go_live and user_value:
                 if tr>atr5:display_text='TR &gt ATR5' #if tr>atr5 else 'TR &lt ATR5'
                 elif tr<atr5:display_text='TR &lt ATR5'
                 st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
-            
             with col4:
-                text_color='green' if higher_close else 'salmon'
-                display_text=''
-                if higher_close:display_text='HIGHER CLOSE'
-                elif lower_close:display_text='LOWER CLOSE'
-            with col5:
                 text_color='green' if price_above_vwap else 'salmon'
                 display_text="ClOSE &gt VWAP" if price_above_vwap else " CLOSE &lt VWAP"
                 st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+            
+            with col5:
+                text_color='green' if higher_close else 'salmon'
+                display_text=''
+                if higher_close:
+                    display_text='HIGHER CLOSE'
+                    st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+                    text_to_audio("HIGHER CLOSE FOR 3 MINUTES")
+                elif lower_close:
+                    display_text='LOWER CLOSE'
+                    st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
+                    text_to_audio("LOWER CLOSE FOR 3 MINUTES")
+                #st.markdown(f"<h3 Style='color:{text_color};font-size:{text_size}'> {display_text}</h3>",unsafe_allow_html=True)
                 
         #row 3
         #plot_key=f'plot_{time.time()}'
         #st.write(f'Time now {time.time()}')
-        #with st.container():
-        st.plotly_chart(fig,use_container_width=True)
+        with st.container():
+            st.plotly_chart(fig,use_container_width=True)
     #return info_df.tail(2)
 
 #whilte True:

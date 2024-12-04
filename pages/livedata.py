@@ -157,6 +157,7 @@ def get_informative_df(df):
   temp_df['sma5<sma10']=temp_df['sma5']<temp_df['sma10']
   temp_df['higher_close']=(temp_df['Close']>temp_df['Close'].shift(1)) & (temp_df['Close'].shift(1)>temp_df['Close'].shift(2))
   temp_df['lower_close']=(temp_df['Close']<temp_df['Close'].shift(1)) & (temp_df['Close'].shift(1)<temp_df['Close'].shift(2))
+  temp_df['volume_sum']=df['volume'].cumsum() # Added sum su
 
   #dropping_columns
   dropping_cols=['TR1','TR2','TR3','typical_price']
@@ -217,6 +218,7 @@ while go_live and user_value:
     higher_close=last_row.at['higher_close']
     lower_close=last_row.at['lower_close']
     existing_date=last_row.at['Datetime']
+    traded_volume=last_row.at['volume_sum'] #total volume 
     last_time=last_row.at['Datetime'].time()
     #st.write(f'last_time: {last_time}')
 
@@ -307,8 +309,8 @@ while go_live and user_value:
                 st.metric(f'change'.upper(),close,change)
             with col4:
                 st.metric('%Change'.upper(),"",pct_change)
-            #with col5:
-            #    st.metric('VOLUME (M)',volume)
+            with col5:
+               st.metric('TRADED_VOLUME (M)',total_volume)
             with col6:
                 st.metric('TR',tr)
             with col7:
